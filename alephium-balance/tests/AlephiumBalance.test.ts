@@ -21,7 +21,7 @@ describe('AlephiumBalance', () => {
   });
 
   describe('getBalance', () => {
-    const testAddress = process.env.TEST_ADDRESS || '1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH';
+    const testAddress = '1B4nx1QZe4jfVmyhc1GVVgYufm6MSD1FA6HqEE9tbAMPP';
 
     it('should return balance in ALPH', async () => {
       const nanoAlphBalance = '1000000000000000000'; // 1 ALPH in nanoALPH

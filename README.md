@@ -1,6 +1,6 @@
 # Alephium Balance Checker
 
-A simple library to check ALPH balances on the Alephium blockchain. Available in both TypeScript and Go implementations.
+A simple tool to check Alephium wallet balances, implemented in both TypeScript and Go.
 
 ## Repository Structure
 
@@ -15,6 +15,18 @@ This repository contains two implementations:
    - Go package for checking ALPH balances
    - Compiled binary for command-line usage
    - Clean package structure with tests
+
+## Environment Setup
+
+Create a `.env` file in the root directory with the following content:
+
+```env
+# Alephium Node Configuration
+ALEPHIUM_NODE_HOST=https://node.mainnet.alephium.org
+
+# Alephium Node testnet Configuration
+ALEPHIUM_TESTNET_NODE_HOST=https://node.testnet.alephium.org
+```
 
 ## Requirements
 
@@ -33,140 +45,63 @@ To update Node.js, you can:
 ### Go Version
 - Go >= 1.20
 
-## Configuration
-
-Create a `.env` file in the root directory with the following structure:
-
-```bash
-# Alephium Node Configuration
-ALEPHIUM_NODE_HOST=https://node.mainnet.alephium.org
-
-# Optional: API key for private node access
-# ALEPHIUM_API_KEY=your_api_key_here
-
-# Test Configuration
-TEST_ADDRESS=1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH
-```
-
-Available environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| ALEPHIUM_NODE_HOST | Alephium node URL | https://node.mainnet.alephium.org |
-| ALEPHIUM_API_KEY | API key for private node access (only needed if you're running your own node) | Not required for public node |
-| TEST_ADDRESS | Default address for testing | Optional |
-
-Note: The API key is only required if you're running your own private Alephium node. When using the public mainnet node (`node.mainnet.alephium.org`), no API key is needed.
-
 ## Installation
 
-Clone the repository:
-
-```bash
-git clone https://github.com/mjwatson10/Alephium.git
-cd Alephium
-```
-
-### TypeScript Setup
+### TypeScript Version
 ```bash
 cd alephium-balance
 npm install
+npm run build
 ```
 
-### Go Setup
+### Go Version
 ```bash
 cd alephium-balance-go
 go build ./cmd/check-balance
 ```
 
+
 ## Usage
 
-### TypeScript Library
-```typescript
-import { AlephiumBalance } from './src'
-
-// Initialize with environment variables
-const alephium = new AlephiumBalance(
-  process.env.ALEPHIUM_NODE_HOST,
-  process.env.ALEPHIUM_API_KEY
-)
-
-// Get balance
-async function checkBalance() {
-  try {
-    const balance = await alephium.getBalance('your-alephium-address')
-    console.log(`Balance: ${balance} ALPH`)
-  } catch (error) {
-    console.error('Error:', error)
-  }
-}
-```
-
 ### TypeScript CLI
+
+There are two ways to check balances using the TypeScript version:
+
+1. Using the shell script (recommended):
 ```bash
-# Build the project
-npm run build
-
-# Check balance (using command line argument)
-node dist/scripts/check-balance.js 1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH
-
-# Or use TEST_ADDRESS from .env
-node dist/scripts/check-balance.js
+cd alephium-balance
+chmod +x scripts/check-balance.sh
+./scripts/check-balance.sh 1B4nx1QZe4jfVmyhc1GVVgYufm6MSD1FA6HqEE9tbAMPP
 ```
 
 ### Go CLI
+
+There are two ways to check balances using the Go version:
+
+1. Using the library script (recommended):
 ```bash
-# Check balance (using command line argument)
-./check-balance 1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH
+cd alephium-balance-go
+chmod +x scripts/check-balance-go-lib.sh
+./scripts/check-balance-go-lib.sh 1B4nx1QZe4jfVmyhc1GVVgYufm6MSD1FA6HqEE9tbAMPP
+```
+This script will automatically build the binary if it doesn't exist and handle any errors gracefully.
 
-# Or use TEST_ADDRESS from .env
-./check-balance
+2. Using the binary directly:
+```bash
+cd alephium-balance-go
+./check-balance 1B4nx1QZe4jfVmyhc1GVVgYufm6MSD1FA6HqEE9tbAMPP
 ```
 
-### Go Library
-```go
-package main
 
-import (
-    "fmt"
-    "os"
-    "github.com/joho/godotenv"
-    "github.com/alephium/alephium-balance-go/pkg/balance"
-)
+## Running Tests
 
-func main() {
-    // Load .env file
-    godotenv.Load()
-
-    // Create balance checker with environment variables
-    checker := balance.NewAlephiumBalance(os.Getenv("ALEPHIUM_NODE_HOST"))
-    
-    // Set API key if available
-    if apiKey := os.Getenv("ALEPHIUM_API_KEY"); apiKey != "" {
-        checker.SetAPIKey(apiKey)
-    }
-
-    // Get balance
-    balance, err := checker.GetBalance("your-alephium-address")
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-        os.Exit(1)
-    }
-    fmt.Printf("Balance: %s ALPH\n", balance)
-}
-```
-
-## Development
-
-### Running Tests
-
-TypeScript tests:
+### TypeScript Tests
 ```bash
 cd alephium-balance
 npm test
 ```
 
-Go tests:
+### Go Tests
 ```bash
 cd alephium-balance-go
 go test ./...
