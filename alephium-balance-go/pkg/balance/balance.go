@@ -28,31 +28,34 @@ func NewAlephiumBalance(nodeURL string) *AlephiumBalance {
 
 // GetBalance retrieves the ALPH balance for a given address
 func (a *AlephiumBalance) GetBalance(address string) (string, error) {
-	// Build the URL
+	// Create request
 	url := fmt.Sprintf("%s/addresses/%s/balance", a.NodeURL, address)
-
-	// Make the request
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to make request: %w", err)
+		return "", fmt.Errorf("error creating request: %v", err)
+	}
+
+	// Make request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error making request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Check if response is successful
+	// Check response status
 	if resp.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("failed to read response: %w", err)
+		}
 		return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Parse the response
+	// Parse response
 	var info AddressInfo
-	if err := json.Unmarshal(body, &info); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return "", fmt.Errorf("error decoding response: %v", err)
 	}
 
 	// Convert balance from nanoALPH to ALPH

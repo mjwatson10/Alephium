@@ -1,22 +1,23 @@
 import { AlephiumBalance } from '../src'
+import dotenv from 'dotenv'
+
+// Load environment variables
+dotenv.config({ path: '../../.env' })
 
 async function main() {
-  const address = process.argv[2]
+  const address = process.argv[2] || process.env.TEST_ADDRESS
   if (!address) {
     console.error('Please provide an Alephium address')
     process.exit(1)
   }
 
   try {
-    // Connect to mainnet node
-    const nodeUrl = 'https://node.mainnet.alephium.org'
+    // Connect to mainnet node using environment variables
+    const nodeUrl = process.env.ALEPHIUM_NODE_HOST || 'https://node.mainnet.alephium.org'
     
     const balance = new AlephiumBalance(nodeUrl)
     const result = await balance.getBalance(address)
-    // Output debug information
-    console.log(`Raw balance: ${result}`)
-    // Output the actual balance
-    process.stdout.write(result)
+    console.log(`Balance: ${result} ALPH`)
   } catch (error: any) {
     const errorMessage = error && error.message ? error.message : String(error)
     console.error(`Error: ${errorMessage}`)
@@ -24,8 +25,4 @@ async function main() {
   }
 }
 
-main().catch((error: any) => {
-  const errorMessage = error && error.message ? error.message : String(error)
-  console.error(`Fatal error: ${errorMessage}`)
-  process.exit(1)
-})
+main()

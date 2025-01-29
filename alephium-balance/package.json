@@ -25,7 +25,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@alephium/web3": "^1.11.3"
+    "@alephium/web3": "^1.11.3",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",
