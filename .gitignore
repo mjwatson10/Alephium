@@ -1,0 +1,29 @@
+# Node.js dependencies
+node_modules/
+
+# TypeScript build output
+dist/
+lib/
+
+# Go build output
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Environment variables
+.env
+*.env.local
