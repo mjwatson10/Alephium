@@ -1,9 +1,8 @@
 import { AlephiumBalance } from '../src/alephiumBalance-class';
-import { NodeProvider } from '@alephium/web3';
 import dotenv from 'dotenv';
 
 // Load environment variables
-dotenv.config({ path: '../../.env' });
+dotenv.config({ path: '../.env' });
 
 // Mock the NodeProvider
 const mockGetBalance = jest.fn();
