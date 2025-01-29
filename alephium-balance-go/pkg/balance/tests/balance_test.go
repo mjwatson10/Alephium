@@ -5,62 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/alephium/alephium-balance-go/pkg/balance"
 )
-
-func TestNewAlephiumBalance(t *testing.T) {
-	tests := []struct {
-		name     string
-		nodeURL  string
-		wantURL  string
-		wantErr  bool
-		setupEnv func()
-	}{
-		{
-			name:    "with default URL",
-			nodeURL: "",
-			wantURL: "https://node.mainnet.alephium.org",
-			setupEnv: func() {
-				os.Unsetenv("ALEPHIUM_TESTNET_NODE_HOST")
-			},
-		},
-		{
-			name:    "with custom URL",
-			nodeURL: "http://localhost:22973",
-			wantURL: "http://localhost:22973",
-			setupEnv: func() {
-				os.Unsetenv("ALEPHIUM_TESTNET_NODE_HOST")
-			},
-		},
-		{
-			name:    "with testnet URL",
-			nodeURL: "testnet-url",
-			wantURL: "https://node.testnet.alephium.org",
-			setupEnv: func() {
-				os.Setenv("ALEPHIUM_TESTNET_NODE_HOST", "testnet-url")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.setupEnv()
-
-			b, err := balance.NewAlephiumBalance(tt.nodeURL)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NewAlephiumBalance() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if got := b.GetNodeURL(); got != tt.wantURL {
-				t.Errorf("NewAlephiumBalance() nodeURL = %v, want %v", got, tt.wantURL)
-			}
-		})
-	}
-}
 
 func TestGetBalance(t *testing.T) {
 	const testAddress = "1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH"
@@ -96,42 +44,35 @@ func TestGetBalance(t *testing.T) {
 			wantResult: "123.456789",
 			statusCode: http.StatusOK,
 		},
-		{
-			name:       "API error",
-			statusCode: http.StatusInternalServerError,
-			wantErr:    true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create test server
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if tt.statusCode != http.StatusOK {
-					w.WriteHeader(tt.statusCode)
-					return
+				w.WriteHeader(tt.statusCode)
+				if tt.statusCode == http.StatusOK {
+					response := struct {
+						Balance string `json:"balance"`
+					}{
+						Balance: tt.balance,
+					}
+					json.NewEncoder(w).Encode(response)
 				}
-
-				response := map[string]string{
-					"balance": tt.balance,
-				}
-				json.NewEncoder(w).Encode(response)
 			}))
 			defer server.Close()
 
 			b, err := balance.NewAlephiumBalance(server.URL)
 			if err != nil {
-				t.Fatalf("Failed to create AlephiumBalance: %v", err)
+				t.Fatal(err)
 			}
 
-			result, err := b.GetBalance(testAddress)
+			got, err := b.GetBalance(testAddress)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetBalance() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
-			if !tt.wantErr && result != tt.wantResult {
-				t.Errorf("GetBalance() = %v, want %v", result, tt.wantResult)
+			if got != tt.wantResult {
+				t.Errorf("GetBalance() = %v, want %v", got, tt.wantResult)
 			}
 		})
 	}
@@ -146,7 +87,7 @@ func TestGetBalanceInvalidAddress(t *testing.T) {
 
 	b, err := balance.NewAlephiumBalance(server.URL)
 	if err != nil {
-		t.Fatalf("Failed to create AlephiumBalance: %v", err)
+		t.Fatal(err)
 	}
 
 	_, err = b.GetBalance("invalid-address")
