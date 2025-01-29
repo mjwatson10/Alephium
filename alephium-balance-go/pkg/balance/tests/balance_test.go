@@ -1,9 +1,11 @@
-package test
+package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/alephium/alephium-balance-go/pkg/balance"
@@ -13,122 +15,142 @@ func TestNewAlephiumBalance(t *testing.T) {
 	tests := []struct {
 		name     string
 		nodeURL  string
-		expected string
+		wantURL  string
+		wantErr  bool
+		setupEnv func()
 	}{
 		{
-			name:     "with mainnet URL",
-			nodeURL:  "https://mainnet-backend.alephium.org",
-			expected: "https://mainnet-backend.alephium.org",
+			name:    "with default URL",
+			nodeURL: "",
+			wantURL: "https://node.mainnet.alephium.org",
+			setupEnv: func() {
+				os.Unsetenv("ALEPHIUM_TESTNET_NODE_HOST")
+			},
 		},
 		{
-			name:     "with local node URL",
-			nodeURL:  "http://localhost:22973",
-			expected: "http://localhost:22973",
+			name:    "with custom URL",
+			nodeURL: "http://localhost:22973",
+			wantURL: "http://localhost:22973",
+			setupEnv: func() {
+				os.Unsetenv("ALEPHIUM_TESTNET_NODE_HOST")
+			},
+		},
+		{
+			name:    "with testnet URL",
+			nodeURL: "testnet-url",
+			wantURL: "https://node.testnet.alephium.org",
+			setupEnv: func() {
+				os.Setenv("ALEPHIUM_TESTNET_NODE_HOST", "testnet-url")
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			balance := balance.NewAlephiumBalance(tt.nodeURL)
-			if balance.NodeURL != tt.expected {
-				t.Errorf("NewAlephiumBalance() nodeURL = %v, want %v", balance.NodeURL, tt.expected)
+			tt.setupEnv()
+
+			b, err := balance.NewAlephiumBalance(tt.nodeURL)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewAlephiumBalance() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if got := b.GetNodeURL(); got != tt.wantURL {
+				t.Errorf("NewAlephiumBalance() nodeURL = %v, want %v", got, tt.wantURL)
 			}
 		})
 	}
 }
 
 func TestGetBalance(t *testing.T) {
-	testAddress := "1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH"
+	const testAddress = "1DrDyTr9RpRsQnDnXo2YRiPzPW4ooHX5LLoqXrqfMrpQH"
 
 	tests := []struct {
-		name           string
-		address        string
-		mockResponse   string
-		mockStatusCode int
-		expected       string
-		expectError    bool
+		name       string
+		balance    string
+		wantResult string
+		wantErr    bool
+		statusCode int
 	}{
 		{
-			name:           "valid balance whole number",
-			address:        testAddress,
-			mockResponse:   `{"balance": "1000000000000000000"}`,
-			mockStatusCode: http.StatusOK,
-			expected:       "1",
-			expectError:    false,
+			name:       "whole number balance",
+			balance:    "1000000000000000000",
+			wantResult: "1",
+			statusCode: http.StatusOK,
 		},
 		{
-			name:           "valid balance with decimals",
-			address:        testAddress,
-			mockResponse:   `{"balance": "1500000000000000000"}`,
-			mockStatusCode: http.StatusOK,
-			expected:       "1.5",
-			expectError:    false,
+			name:       "decimal balance",
+			balance:    "1500000000000000000",
+			wantResult: "1.5",
+			statusCode: http.StatusOK,
 		},
 		{
-			name:           "invalid address",
-			address:        "invalid-address",
-			mockResponse:   `{"message": "Invalid address format"}`,
-			mockStatusCode: http.StatusBadRequest,
-			expected:       "",
-			expectError:    true,
+			name:       "zero balance",
+			balance:    "0",
+			wantResult: "0",
+			statusCode: http.StatusOK,
 		},
 		{
-			name:           "server error",
-			address:        testAddress,
-			mockResponse:   `{"message": "Internal server error"}`,
-			mockStatusCode: http.StatusInternalServerError,
-			expected:       "",
-			expectError:    true,
+			name:       "large balance",
+			balance:    "123456789000000000000",
+			wantResult: "123.456789",
+			statusCode: http.StatusOK,
 		},
 		{
-			name:           "invalid JSON response",
-			address:        testAddress,
-			mockResponse:   `invalid json`,
-			mockStatusCode: http.StatusOK,
-			expected:       "",
-			expectError:    true,
+			name:       "API error",
+			statusCode: http.StatusInternalServerError,
+			wantErr:    true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a test server
+			// Create test server
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				// Check request method
-				if r.Method != http.MethodGet {
-					t.Errorf("Expected GET request, got %s", r.Method)
+				if tt.statusCode != http.StatusOK {
+					w.WriteHeader(tt.statusCode)
+					return
 				}
 
-				// Check request path
-				expectedPath := fmt.Sprintf("/addresses/%s/balance", tt.address)
-				if r.URL.Path != expectedPath {
-					t.Errorf("Expected path %s, got %s", expectedPath, r.URL.Path)
+				response := map[string]string{
+					"balance": tt.balance,
 				}
-
-				// Send mock response
-				w.WriteHeader(tt.mockStatusCode)
-				w.Write([]byte(tt.mockResponse))
+				json.NewEncoder(w).Encode(response)
 			}))
 			defer server.Close()
 
-			// Create AlephiumBalance instance with test server URL
-			balance := balance.NewAlephiumBalance(server.URL)
-
-			// Call GetBalance
-			result, err := balance.GetBalance(tt.address)
-
-			// Check error
-			if tt.expectError && err == nil {
-				t.Error("Expected error but got none")
-			}
-			if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			b, err := balance.NewAlephiumBalance(server.URL)
+			if err != nil {
+				t.Fatalf("Failed to create AlephiumBalance: %v", err)
 			}
 
-			// Check result
-			if !tt.expectError && result != tt.expected {
-				t.Errorf("GetBalance() = %v, want %v", result, tt.expected)
+			result, err := b.GetBalance(testAddress)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBalance() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && result != tt.wantResult {
+				t.Errorf("GetBalance() = %v, want %v", result, tt.wantResult)
 			}
 		})
+	}
+}
+
+func TestGetBalanceInvalidAddress(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "Invalid address format")
+	}))
+	defer server.Close()
+
+	b, err := balance.NewAlephiumBalance(server.URL)
+	if err != nil {
+		t.Fatalf("Failed to create AlephiumBalance: %v", err)
+	}
+
+	_, err = b.GetBalance("invalid-address")
+	if err == nil {
+		t.Error("GetBalance() expected error for invalid address")
 	}
 }

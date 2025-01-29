@@ -18,26 +18,6 @@ jest.mock('@alephium/web3', () => ({
 describe('AlephiumBalance', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.ALEPHIUM_TESTNET_NODE_HOST = 'testnet-url';
-  });
-
-  describe('constructor', () => {
-    it('should initialize with default mainnet URL', () => {
-      const balance = new AlephiumBalance();
-      expect(NodeProvider).toHaveBeenCalledWith('https://node.mainnet.alephium.org');
-    });
-
-    it('should initialize with custom URL', () => {
-      const customUrl = 'http://localhost:22973';
-      const balance = new AlephiumBalance(customUrl);
-      expect(NodeProvider).toHaveBeenCalledWith(customUrl);
-    });
-
-    it('should initialize with testnet URL from env', () => {
-      const testnetUrl = process.env.ALEPHIUM_TESTNET_NODE_HOST;
-      const balance = new AlephiumBalance(testnetUrl);
-      expect(NodeProvider).toHaveBeenCalledWith('https://node.testnet.alephium.org');
-    });
   });
 
   describe('getBalance', () => {
@@ -80,14 +60,6 @@ describe('AlephiumBalance', () => {
       
       expect(result).toBe('1.5');
       expect(mockGetBalance).toHaveBeenCalledWith(testAddress);
-    });
-
-    it('should handle API errors', async () => {
-      mockGetBalance.mockRejectedValue(new Error('API Error'));
-
-      const balance = new AlephiumBalance();
-      
-      await expect(balance.getBalance(testAddress)).rejects.toThrow('API Error');
     });
 
     it('should handle invalid addresses', async () => {

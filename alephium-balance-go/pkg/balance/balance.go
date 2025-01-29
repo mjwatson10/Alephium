@@ -6,78 +6,102 @@ import (
 	"io"
 	"math/big"
 	"net/http"
-	"strings"
+	"os"
 )
 
 // AlephiumBalance represents the balance checker for Alephium addresses
 type AlephiumBalance struct {
-	NodeURL string
-}
-
-// AddressInfo represents the response from the Alephium node
-type AddressInfo struct {
-	Balance string `json:"balance"`
+	nodeURL string
+	apiKey  string
 }
 
 // NewAlephiumBalance creates a new instance of AlephiumBalance
-func NewAlephiumBalance(nodeURL string) *AlephiumBalance {
-	return &AlephiumBalance{
-		NodeURL: nodeURL,
+func NewAlephiumBalance(url string) (*AlephiumBalance, error) {
+	if url == "" {
+		url = "https://node.mainnet.alephium.org"
 	}
+
+	// Check if testnet URL is provided from env
+	testnetURL := os.Getenv("ALEPHIUM_TESTNET_NODE_HOST")
+	if testnetURL != "" && url == testnetURL {
+		url = "https://node.testnet.alephium.org"
+	}
+
+	return &AlephiumBalance{
+		nodeURL: url,
+	}, nil
+}
+
+// GetNodeURL returns the node URL being used
+func (a *AlephiumBalance) GetNodeURL() string {
+	return a.nodeURL
+}
+
+// AddressInfo represents the response from the Alephium node
+type AddressBalance struct {
+	Balance string `json:"balance"`
 }
 
 // GetBalance retrieves the ALPH balance for a given address
 func (a *AlephiumBalance) GetBalance(address string) (string, error) {
 	// Create request
-	url := fmt.Sprintf("%s/addresses/%s/balance", a.NodeURL, address)
+	url := fmt.Sprintf("%s/addresses/%s/balance", a.nodeURL, address)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "", fmt.Errorf("error creating request: %v", err)
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	if a.apiKey != "" {
+		req.Header.Set("X-API-KEY", a.apiKey)
 	}
 
 	// Make request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("error making request: %v", err)
+		return "", fmt.Errorf("failed to get balance: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return "", fmt.Errorf("failed to read response: %w", err)
-		}
-		return "", fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("failed to get balance: %s", string(body))
 	}
 
 	// Parse response
-	var info AddressInfo
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return "", fmt.Errorf("error decoding response: %v", err)
+	var balance AddressBalance
+	if err := json.NewDecoder(resp.Body).Decode(&balance); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	// Convert balance from nanoALPH to ALPH
-	balance := new(big.Int)
-	balance.SetString(info.Balance, 10)
+	balanceInt := new(big.Int)
+	balanceInt.SetString(balance.Balance, 10)
 
-	// 1 ALPH = 10^18 nanoALPH
-	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
-	
-	// Calculate whole and decimal parts
+	divisor := new(big.Int)
+	divisor.Exp(big.NewInt(10), big.NewInt(18), nil)
+
 	wholePart := new(big.Int)
 	decimalPart := new(big.Int)
-	wholePart.DivMod(balance, divisor, decimalPart)
+	wholePart.DivMod(balanceInt, divisor, decimalPart)
 
-	// If there's no decimal part, return just the whole part
 	if decimalPart.Cmp(big.NewInt(0)) == 0 {
 		return wholePart.String(), nil
 	}
 
-	// Format decimal part with proper padding and remove trailing zeros
+	// Format decimal part with proper padding
 	decimalStr := fmt.Sprintf("%018s", decimalPart.String())
-	decimalStr = strings.TrimRight(decimalStr, "0")
+	decimalStr = trimTrailingZeros(decimalStr)
 
 	return fmt.Sprintf("%s.%s", wholePart.String(), decimalStr), nil
+}
+
+func trimTrailingZeros(s string) string {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] != '0' {
+			return s[:i+1]
+		}
+	}
+	return ""
 }

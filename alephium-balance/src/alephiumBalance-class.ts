@@ -3,12 +3,11 @@ import { NodeProvider } from '@alephium/web3';
 export class AlephiumBalance {
   private readonly nodeProvider: NodeProvider;
   private static readonly DEFAULT_MAINNET_URL = process.env.ALEPHIUM_NODE_HOST ?? 'https://node.mainnet.alephium.org';
-  private static readonly DEFAULT_TESTNET_URL = process.env.ALEPHIUM_TESTNET_NODE_HOST ?? 'https://node.testnet.alephium.org';
 
   constructor(url: string = AlephiumBalance.DEFAULT_MAINNET_URL) {
     // If testnet URL is provided, use testnet node
     const actualUrl = url === process.env.ALEPHIUM_TESTNET_NODE_HOST 
-      ? AlephiumBalance.DEFAULT_TESTNET_URL
+      ? process.env.ALEPHIUM_TESTNET_NODE_HOST
       : url;
     this.nodeProvider = new NodeProvider(actualUrl);
   }
