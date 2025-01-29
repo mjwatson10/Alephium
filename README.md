@@ -131,7 +131,7 @@ import (
     "fmt"
     "os"
     "github.com/joho/godotenv"
-    "github.com/your-username/alephium-balance-go/pkg/balance"
+    "github.com/alephium/alephium-balance-go/pkg/balance"
 )
 
 func main() {
