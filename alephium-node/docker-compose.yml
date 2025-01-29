@@ -1,0 +1,15 @@
+version: "3"
+services:
+  alephium:
+    image: alephium/alephium:v2.5.3
+    restart: unless-stopped
+    ports:
+      - 12973:12973 # REST API
+      - 19973:19973 # WS API
+      - 19973:19973/udp # P2P
+    volumes:
+      - ./.alephium:/alephium/.alephium
+      - ./user-config:/alephium/user-config
+    environment:
+      - ALEPHIUM_FILE_LOG_LEVEL=DEBUG
+      - ALEPHIUM_NETWORK=testnet
